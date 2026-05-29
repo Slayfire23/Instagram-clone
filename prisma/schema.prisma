@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum PostType {
+  IMAGE
+  REEL
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum InteractionType {
+  LIKE
+  COMMENT
+  FOLLOW
+  FOLLOW_REQUEST
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  REPLY
+  FOLLOW
+  FOLLOW_REQUEST
+  FOLLOW_REQUEST_REJECTED
+  FOLLOW_REQUEST_ACCEPTED
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  username  String   @unique
+  name      String?
+  bio       String?
+  image     String?
+  website   String?
+  gender    String?
+  isPrivate Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts                Post[]
+  stories              Story[]
+  viewedStories        ViewedStory[]
+  sentInteractions     Interaction[]  @relation("SentInteractions")
+  receivedInteractions Interaction[]  @relation("ReceivedInteractions")
+  sentNotifications    Notification[] @relation("SentNotifications")
+  receivedNotifications Notification[] @relation("ReceivedNotifications")
+  followers            User[]         @relation("UserFollows")
+  following            User[]         @relation("UserFollows")
+}
+
+model Post {
+  id        String    @id @default(cuid())
+  type      PostType
+  mediaUrl  String
+  mediaType MediaType @default(IMAGE)
+  caption   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  interactions  Interaction[]
+  notifications Notification[]
+}
+
+model Story {
+  id        String    @id @default(cuid())
+  mediaUrl  String
+  mediaType MediaType
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  viewedBy ViewedStory[]
+
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model ViewedStory {
+  id       String   @id @default(cuid())
+  viewedAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  storyId String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storyId])
+  @@index([userId])
+  @@index([storyId])
+}
+
+model Interaction {
+  id        String          @id @default(cuid())
+  type      InteractionType
+  content   String?
+  createdAt DateTime        @default(now())
+
+  userId String
+  user   User   @relation("SentInteractions", fields: [userId], references: [id], onDelete: Cascade)
+
+  postId String?
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  targetUserId String?
+  targetUser   User?   @relation("ReceivedInteractions", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   Interaction?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Interaction[] @relation("CommentReplies")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  senderId String
+  sender   User   @relation("SentNotifications", fields: [senderId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   User   @relation("ReceivedNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  postId String?
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, isRead])
+  @@index([recipientId, createdAt])
+}
