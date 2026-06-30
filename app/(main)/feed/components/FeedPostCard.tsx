@@ -20,6 +20,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   likePost,
   unlikePost,
+  savePost,
+  unsavePost,
   addComment,
   getComments,
   getCommentReplies,
@@ -41,6 +43,7 @@ type FeedPost = {
   };
   likeCount: number;
   liked: boolean;
+  saved: boolean;
   commentCount: number;
 };
 
@@ -84,6 +87,8 @@ export default function FeedPostCard({ post }: FeedPostCardProps) {
   const [optimisticLikeCount, setOptimisticLikeCount] =
     useOptimistic(likeCount);
   const [, startLikeTransition] = useTransition();
+  const [saved, setSaved] = useState(post.saved);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Comments
   const [showComments, setShowComments] = useState(false);
@@ -130,6 +135,25 @@ export default function FeedPostCard({ post }: FeedPostCardProps) {
     setIsMuted(next);
     if (videoRef.current) {
       videoRef.current.muted = next;
+    }
+  }
+
+  async function handleToggleSave() {
+    if (isSaving) return;
+    const nextSaved = !saved;
+    setSaved(nextSaved);
+    setIsSaving(true);
+
+    try {
+      if (nextSaved) {
+        await savePost(post.id);
+      } else {
+        await unsavePost(post.id);
+      }
+    } catch {
+      setSaved(!nextSaved);
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -302,9 +326,12 @@ export default function FeedPostCard({ post }: FeedPostCardProps) {
           <Button
             variant="ghost"
             size="icon-sm"
+            onClick={handleToggleSave}
+            disabled={isSaving}
+            aria-label={saved ? "Unsave post" : "Save post"}
             className="hover:opacity-60"
           >
-            <Bookmark size={24} />
+            <Bookmark size={24} className={saved ? "fill-current" : ""} />
           </Button>
         </div>
 

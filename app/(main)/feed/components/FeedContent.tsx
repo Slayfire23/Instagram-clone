@@ -19,6 +19,7 @@ type FeedPost = {
   };
   likeCount: number;
   liked: boolean;
+  saved: boolean;
   commentCount: number;
 };
 

@@ -101,10 +101,10 @@ export default function ProfileHeader({
               </Button>
               <Button
                 variant="secondary"
-                asChild
-                className="bg-gray-100 hover:bg-gray-200 text-sm font-medium"
+                disabled
+                className="bg-gray-100 hover:bg-gray-100 text-sm font-medium opacity-50 cursor-not-allowed"
               >
-                <Link href="/archive">View archive</Link>
+                View archive
               </Button>
             </div>
           ) : (
@@ -139,10 +139,10 @@ export default function ProfileHeader({
           </Button>
           <Button
             variant="secondary"
-            asChild
-            className="bg-gray-100 hover:bg-gray-200 text-sm font-medium"
+            disabled
+            className="bg-gray-100 hover:bg-gray-100 text-sm font-medium opacity-50 cursor-not-allowed"
           >
-            <Link href="/archive">View archive</Link>
+            View archive
           </Button>
         </div>
       ) : (

@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { currentUser } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
 import { getUser } from "@/server/actions/user.actions";
 
 async function getAuthenticatedUserId() {
@@ -94,6 +95,55 @@ export async function hasUserLikedPost(postId: string) {
 }
 
 // ─── Comments ───────────────────────────────────────────────────────────────
+
+export async function savePost(postId: string) {
+  const userId = await getAuthenticatedUserId();
+
+  const existing = await prisma.interaction.findFirst({
+    where: { userId, postId, type: "SAVED" },
+    select: { id: true },
+  });
+  if (existing) return;
+
+  await prisma.interaction.create({
+    data: {
+      type: "SAVED",
+      userId,
+      postId,
+    },
+  });
+
+  revalidatePath("/profile");
+}
+
+export async function unsavePost(postId: string) {
+  const userId = await getAuthenticatedUserId();
+
+  await prisma.interaction.deleteMany({
+    where: { userId, postId, type: "SAVED" },
+  });
+
+  revalidatePath("/profile");
+}
+
+export async function hasUserSavedPost(postId: string) {
+  try {
+    const clerkUser = await currentUser();
+    if (!clerkUser) return false;
+
+    const user = await getUser(clerkUser.id);
+    if (!user) return false;
+
+    const saved = await prisma.interaction.findFirst({
+      where: { userId: user.id, postId, type: "SAVED" },
+      select: { id: true },
+    });
+
+    return !!saved;
+  } catch {
+    return false;
+  }
+}
 
 export async function addComment(postId: string, content: string, parentId?: string) {
   const userId = await getAuthenticatedUserId();

@@ -73,10 +73,8 @@ export async function ensureCurrentUserProfile() {
 
     if (existingUser) return existingUser;
 
-    const email = clerkUser.emailAddresses[0]?.emailAddress;
-    if (!email) {
-      throw new Error("Authenticated Clerk user is missing an email address");
-    }
+    const email =
+      clerkUser.emailAddresses[0]?.emailAddress ?? `${clerkUser.id}@no-email.local`;
 
     const requestedUsername =
       typeof clerkUser.unsafeMetadata?.username === "string"
@@ -107,10 +105,7 @@ export async function ensureCurrentUserProfile() {
 
 export async function createOrUpdateUser(data: ClerkWebhookUserData) {
   try {
-    const email = data.email_addresses[0]?.email_address;
-    if (!email) {
-      throw new Error("Webhook payload is missing an email address");
-    }
+    const email = data.email_addresses[0]?.email_address ?? `${data.id}@no-email.local`;
 
     const username = await ensureUniqueUsername(
       buildUniqueUsernameBase(data.username ?? data.unsafe_metadata?.username, email),

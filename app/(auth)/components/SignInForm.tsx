@@ -23,7 +23,7 @@ export default function SignInForm() {
 
   const credForm = useForm<SignInType>({
     resolver: zodResolver(signInSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { username: "", password: "" },
   });
 
   const codeForm = useForm<VerificationCodeType>({
@@ -53,7 +53,7 @@ export default function SignInForm() {
     setError(null);
     try {
       const result = await signIn.create({
-        identifier: data.email,
+        identifier: data.username.toLowerCase(),
         password: data.password,
       });
 
@@ -67,7 +67,12 @@ export default function SignInForm() {
       }
     } catch (err: unknown) {
       const clerkErr = err as { errors?: { message: string }[] };
-      setError(clerkErr.errors?.[0]?.message ?? "Sign-in failed. Please check your credentials.");
+      const message = clerkErr.errors?.[0]?.message;
+      setError(
+        message === "Identifier is invalid."
+          ? "Username or password is incorrect."
+          : message ?? "Sign-in failed. Please check your credentials."
+      );
     }
   }
 
@@ -102,15 +107,16 @@ export default function SignInForm() {
           {/* Email + password form */}
           <form onSubmit={credForm.handleSubmit(onCredentialsSubmit)} className="flex flex-col gap-4">
             <Controller
-              name="email"
+              name="username"
               control={credForm.control}
               render={({ field, fieldState }) => (
                 <div className="flex flex-col gap-1">
                   <Input
                     {...field}
-                    placeholder="Email"
+                    onChange={(event) => field.onChange(event.target.value.toLowerCase())}
+                    placeholder="Username"
                     aria-invalid={fieldState.invalid}
-                    autoComplete="email"
+                    autoComplete="username"
                     className="h-14 text-base rounded-2xl bg-white border-gray-300 w-full"
                   />
                   {fieldState.error && (

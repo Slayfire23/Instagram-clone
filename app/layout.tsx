@@ -28,11 +28,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <ClerkProvider>
           <NextSSRPlugin
           /**
            * The `extractRouterConfig` will extract **only** the route configs
@@ -44,9 +44,8 @@ export default function RootLayout({
         />
           {children}
           <Footer />
-        </body>
-      </html>
-    </ClerkProvider>
-
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }

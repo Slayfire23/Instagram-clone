@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useOptimistic, useTransition } from "react";
+import { useEffect, useState, useRef, useOptimistic, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -33,6 +33,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  hasUserSavedPost,
+  savePost,
+  unsavePost,
+} from "@/server/actions/interaction.actions";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -126,6 +131,8 @@ export default function PostModal({
   const [optimisticLiked, setOptimisticLiked] = useOptimistic(liked);
   const [optimisticLikeCount, setOptimisticLikeCount] = useOptimistic(likeCount);
   const [, startLikeTransition] = useTransition();
+  const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Comments
   const [comments, setComments] = useState(initialComments);
@@ -144,6 +151,19 @@ export default function PostModal({
   // Delete dialogs
   const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
   const [showDeletePost, setShowDeletePost] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    hasUserSavedPost(post.id).then((isSaved) => {
+      if (!cancelled) setSaved(isSaved);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, post.id]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────
 
@@ -171,6 +191,25 @@ export default function PostModal({
     if (videoRef.current) {
       videoRef.current.muted = next;
       if (!next) videoRef.current.volume = volume;
+    }
+  }
+
+  async function handleToggleSave() {
+    if (isSaving) return;
+    const nextSaved = !saved;
+    setSaved(nextSaved);
+    setIsSaving(true);
+
+    try {
+      if (nextSaved) {
+        await savePost(post.id);
+      } else {
+        await unsavePost(post.id);
+      }
+    } catch {
+      setSaved(!nextSaved);
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -436,8 +475,14 @@ export default function PostModal({
                     <Send size={22} />
                   </Button>
                 </div>
-                <Button variant="ghost" size="icon-sm" aria-label="Save">
-                  <Bookmark size={22} />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleToggleSave}
+                  disabled={isSaving}
+                  aria-label={saved ? "Unsave post" : "Save post"}
+                >
+                  <Bookmark size={22} className={saved ? "fill-current" : ""} />
                 </Button>
               </div>
 

@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getProfile } from "@/server/actions/profile.actions";
-import { getUserOwnPosts } from "@/server/actions/post.actions";
+import { getSavedPosts, getUserOwnPosts } from "@/server/actions/post.actions";
 import ProfileHeader from "@/app/(main)/components/ProfileHeader";
 import ProfilePostCard from "@/app/(main)/components/ProfilePostCard";
 
@@ -20,6 +20,7 @@ export default async function ProfilePage() {
   if (!profile) redirect("/");
 
   const posts = await getUserOwnPosts();
+  const savedPosts = await getSavedPosts();
 
   const reelPosts = posts.filter((p) => p.type === "REEL");
 
@@ -127,11 +128,23 @@ export default async function ProfilePage() {
 
         {/* Saved tab */}
         <TabsContent value="saved">
-          <EmptyState
-            icon={<Bookmark size={40} />}
-            title="Save"
-            description="Save photos and videos that you want to see again."
-          />
+          {savedPosts.length > 0 ? (
+            <div className="grid grid-cols-3 gap-1">
+              {savedPosts.map((post) => (
+                <ProfilePostCard
+                  key={post.id}
+                  post={post}
+                  isOwnPost={false}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<Bookmark size={40} />}
+              title="Save"
+              description="Save photos and videos that you want to see again."
+            />
+          )}
         </TabsContent>
 
         {/* Tagged tab */}

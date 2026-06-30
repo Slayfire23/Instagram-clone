@@ -11,7 +11,7 @@ import Link from "next/link";
 import { format, parse } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { signUpSchema, SignUpType, signUpVerificationSchema, SignUpVerificationType } from "@/app/(auth)/validations/SignUp";
+import { signUpSchema, SignUpType } from "@/app/(auth)/validations/SignUp";
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -24,158 +24,64 @@ const YEARS = Array.from({ length: 100 }, (_, i) => String(currentYear - i));
 export default function SignUpForm() {
   const router = useRouter();
   const { signUp, isLoaded, setActive } = useSignUp();
-  const [showVerification, setShowVerification] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<SignUpType>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
-      email: "", password: "", fullName: "", username: "",
+      password: "", fullName: "", username: "",
       month: "", day: "", year: "",
     },
   });
 
-  const codeForm = useForm<SignUpVerificationType>({
-    resolver: zodResolver(signUpVerificationSchema),
-    defaultValues: { code: "" },
-  });
-
   async function onSubmit(data: SignUpType) {
-    if (!isLoaded) return;
-    setIsLoading(true);
+    if (!isLoaded) {
+      setError("Clerk is still loading. Try again in a second.");
+      return;
+    }
     setError(null);
 
     const parsed = parse(`${data.month} ${data.day} ${data.year}`, "MMMM d yyyy", new Date());
     const birthday = format(parsed, "yyyy-MM-dd");
 
     try {
+      const username = data.username.toLowerCase();
       const signUpAttempt = await signUp.create({
-        emailAddress: data.email,
+        username,
         password: data.password,
-        firstName: data.fullName.split(" ")[0],
-        lastName: data.fullName.split(" ").slice(1).join(" ") || undefined,
-        unsafeMetadata: { birthday, username: data.username },
+        unsafeMetadata: { birthday, fullName: data.fullName, username },
       });
 
       if (signUpAttempt.status === "complete") {
         await setActive({ session: signUpAttempt.createdSessionId });
         router.push("/feed");
       } else {
-        await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
-        setShowVerification(true);
+        setError("Clerk still needs another sign-up requirement. Check that username and password are enabled in your Clerk development settings.");
       }
     } catch (err) {
       if (isClerkAPIResponseError(err)) {
-        console.error(
-          "Clerk sign-up error:",
-          JSON.stringify(
-            err.errors.map((e) => ({
-              code: e.code,
-              message: e.message,
-              longMessage: e.longMessage,
-              paramName: e.meta?.paramName,
-            })),
-            null,
-            2
-          )
-        );
         const unhandledMessages: string[] = [];
         err.errors.forEach((e) => {
           const param = e.meta?.paramName;
-          if (param === "email_address") form.setError("email", { message: e.message });
-          else if (param === "password") form.setError("password", { message: e.message });
-          else if (param === "username") form.setError("username", { message: e.message });
-          unhandledMessages.push(
-            [e.code, e.longMessage || e.message].filter(Boolean).join(": ")
-          );
+          const message =
+            param === "username" && e.message === "is unknown"
+              ? "Username sign-up is not enabled for this Clerk development app."
+              : e.longMessage || e.message;
+
+          if (param === "password") form.setError("password", { message });
+          else if (param === "username") form.setError("username", { message });
+          else {
+            unhandledMessages.push(message);
+          }
         });
         if (unhandledMessages.length > 0) {
           setError(unhandledMessages.join(" | "));
         }
       } else {
-        setError("Something went wrong. Please try again.");
+        const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        setError(message);
       }
-    } finally {
-      setIsLoading(false);
     }
-  }
-
-  async function onVerify(data: SignUpVerificationType) {
-    if (!isLoaded) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await signUp.attemptEmailAddressVerification({ code: data.code });
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        router.push("/feed");
-      }
-    } catch (err) {
-      if (isClerkAPIResponseError(err)) {
-        setError(err.errors[0]?.message ?? "Invalid code. Please try again.");
-      } else {
-        setError("Verification failed. Please try again.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (showVerification) {
-    return (
-      <div className="flex flex-col items-center gap-6 w-full">
-        {/* Logo */}
-        <Image src="/assets/logo.svg" alt="Instagram" width={64} height={64} priority />
-
-        {/* Heading */}
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-2xl font-bold">Verify your email</h2>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            Enter the 6-digit code sent to{" "}
-            <span className="font-medium text-black">{form.getValues("email")}</span>
-          </p>
-        </div>
-
-        <form onSubmit={codeForm.handleSubmit(onVerify)} className="flex flex-col gap-4 w-full">
-          <Controller
-            name="code"
-            control={codeForm.control}
-            render={({ field, fieldState }) => (
-              <div className="flex flex-col gap-1">
-                <Input
-                  {...field}
-                  placeholder="Verification code"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  className="h-14 text-lg rounded-2xl bg-white border-gray-300 w-full text-center tracking-widest"
-                />
-                {fieldState.error && (
-                  <p className="text-xs text-red-500 text-center">{fieldState.error.message}</p>
-                )}
-              </div>
-            )}
-          />
-
-          {error && <p className="text-xs text-red-500 text-center">{error}</p>}
-
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full h-14 rounded-2xl bg-[#0095F6] hover:bg-[#1877F2] text-white font-semibold text-lg cursor-pointer"
-          >
-            {isLoading ? "Verifying..." : "Verify"}
-          </Button>
-        </form>
-
-        <button
-          onClick={() => setShowVerification(false)}
-          className="text-sm text-[#0095F6] cursor-pointer hover:text-blue-700 transition-colors"
-        >
-          &larr; Back to sign up
-        </button>
-      </div>
-    );
   }
 
   return (
@@ -200,36 +106,12 @@ export default function SignUpForm() {
         </p>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
-        {/* Email */}
-        <div className="flex flex-col gap-1">
-          <label className="text-base font-semibold">Email</label>
-          <Controller
-            name="email"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <div className="flex flex-col gap-1">
-                <Input
-                  {...field}
-                  placeholder="Email"
-                  autoComplete="email"
-                  className="h-14 text-lg rounded-2xl bg-white border-gray-300 w-full"
-                />
-                {fieldState.error ? (
-                  <p className="text-xs text-red-500">{fieldState.error.message}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    You may receive notifications from us.{" "}
-                    <span className="text-[#0095F6] font-medium cursor-pointer">
-                      Learn why we ask for your contact information
-                    </span>
-                  </p>
-                )}
-              </div>
-            )}
-          />
-        </div>
-
+      <form
+        onSubmit={form.handleSubmit(onSubmit, () => {
+          setError("Please fix the highlighted fields before submitting.");
+        })}
+        className="flex flex-col gap-4"
+      >
         {/* Password */}
         <div className="flex flex-col gap-1">
           <label className="text-base font-semibold">Password</label>
@@ -337,6 +219,7 @@ export default function SignUpForm() {
               <div className="flex flex-col gap-1">
                 <Input
                   {...field}
+                  onChange={(event) => field.onChange(event.target.value.toLowerCase())}
                   placeholder="Username"
                   autoComplete="username"
                   className="h-14 text-lg rounded-2xl bg-white border-gray-300 w-full"
@@ -377,10 +260,10 @@ export default function SignUpForm() {
 
         <Button
           type="submit"
-          disabled={isLoading}
+          disabled={form.formState.isSubmitting}
           className="w-full h-14 rounded-2xl bg-[#0095F6] hover:bg-[#1877F2] text-white font-bold text-lg cursor-pointer"
         >
-          {isLoading ? "Creating account..." : "Submit"}
+          {form.formState.isSubmitting ? "Creating account..." : "Submit"}
         </Button>
       </form>
 

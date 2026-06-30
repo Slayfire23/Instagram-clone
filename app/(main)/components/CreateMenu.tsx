@@ -47,7 +47,7 @@ export default function CreateMenu({
         <Button
           variant="ghost"
           disabled
-          className="flex items-center justify-between w-full px-4 py-7 rounded-none opacity-50"
+          className="flex items-center justify-between w-full px-4 py-7 rounded-none opacity-50 cursor-not-allowed"
         >
           <span className="text-base font-normal">AI</span>
           <Sparkles size={24} />

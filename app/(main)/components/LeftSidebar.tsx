@@ -41,6 +41,7 @@ type NavItem = {
   icon: React.ReactNode;
   href?: string;
   action?: "create" | "search" | "notifications";
+  disabled?: boolean;
 };
 
 type LeftSidebarProps = {
@@ -54,17 +55,17 @@ type LeftSidebarProps = {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Home", icon: <Home size={24} />, href: "/feed" },
-  { label: "Reels", icon: <Play size={24} />, href: "/reels" },
-  { label: "Messages", icon: <Send size={24} />, href: "/messages" },
-  { label: "Search", icon: <Search size={24} />, action: "search" },
-  { label: "Explore", icon: <Compass size={24} />, href: "/explore" },
+  { label: "Reels", icon: <Play size={24} />, href: "/reels", disabled: true },
+  { label: "Messages", icon: <Send size={24} />, href: "/messages", disabled: true },
+  { label: "Search", icon: <Search size={24} />, action: "search", disabled: true },
+  { label: "Explore", icon: <Compass size={24} />, href: "/explore", disabled: true },
   { label: "Notifications", icon: <Heart size={24} />, action: "notifications" },
   { label: "Create", icon: <Plus size={24} />, action: "create" },
 ];
 
 const BOTTOM_ITEMS = [
   { label: "Menu", icon: <Menu size={24} />, href: "#" },
-  { label: "Meta AI", icon: <LayoutGrid size={24} />, href: "#" },
+  { label: "Meta AI", icon: <LayoutGrid size={24} />, href: "#", disabled: true },
 ];
 
 function formatBadge(count: number) {
@@ -90,6 +91,8 @@ export default function LeftSidebar({
   const [showCreatePost, setShowCreatePost] = useState(false);
 
   function handleNavClick(item: NavItem) {
+    if (item.disabled) return;
+
     if (item.href) {
       router.push(item.href);
     } else if (item.action === "create") {
@@ -124,7 +127,8 @@ export default function LeftSidebar({
                   key={item.label}
                   variant="ghost"
                   onClick={() => handleNavClick(item)}
-                  className={`w-full justify-center px-3 py-6 rounded-xl cursor-pointer focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none ${isActive(item.href) ? "font-semibold" : "font-normal"}`}
+                  aria-disabled={item.disabled}
+                  className={`w-full justify-center px-3 py-6 rounded-xl focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none ${item.disabled ? "cursor-not-allowed opacity-50 hover:bg-transparent" : "cursor-pointer"} ${isActive(item.href) ? "font-semibold" : "font-normal"}`}
                 >
                   <div className="relative shrink-0">
                     {item.icon}
@@ -152,8 +156,14 @@ export default function LeftSidebar({
           </div>
           <div className="flex flex-col gap-1">
             {BOTTOM_ITEMS.map((item) => (
-              <Button key={item.label} variant="ghost" asChild className="w-full justify-center px-3 py-6 rounded-xl font-normal cursor-pointer focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none">
-                <Link href={item.href}>{item.icon}</Link>
+              <Button
+                key={item.label}
+                variant="ghost"
+                asChild={!item.disabled}
+                aria-disabled={item.disabled}
+                className={`w-full justify-center px-3 py-6 rounded-xl font-normal focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none ${item.disabled ? "cursor-not-allowed opacity-50 hover:bg-transparent" : "cursor-pointer"}`}
+              >
+                {item.disabled ? <span>{item.icon}</span> : <Link href={item.href}>{item.icon}</Link>}
               </Button>
             ))}
             <Button variant="ghost" onClick={() => setShowLogoutDialog(true)} className="w-full justify-center px-3 py-6 rounded-xl font-normal cursor-pointer focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none">
@@ -185,7 +195,8 @@ export default function LeftSidebar({
                     key={item.label}
                     variant="ghost"
                     onClick={() => handleNavClick(item)}
-                    className={`w-full justify-start gap-4 px-3 py-4 rounded-xl cursor-pointer focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none ${isActive(item.href) ? "font-semibold" : "font-normal"}`}
+                    aria-disabled={item.disabled}
+                    className={`w-full justify-start gap-4 px-3 py-4 rounded-xl focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none ${item.disabled ? "cursor-not-allowed opacity-50 hover:bg-transparent" : "cursor-pointer"} ${isActive(item.href) ? "font-semibold" : "font-normal"}`}
                   >
                     <div className="relative shrink-0">
                       {item.icon}
@@ -216,11 +227,24 @@ export default function LeftSidebar({
             <div className="flex flex-col gap-0.5">
               <Separator className="mb-2" />
               {BOTTOM_ITEMS.map((item) => (
-                <Button key={item.label} variant="ghost" asChild className="w-full justify-start gap-4 px-3 py-4 rounded-xl font-normal cursor-pointer focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none">
-                  <Link href={item.href}>
-                    {item.icon}
-                    <span className="text-sm">{item.label}</span>
-                  </Link>
+                <Button
+                  key={item.label}
+                  variant="ghost"
+                  asChild={!item.disabled}
+                  aria-disabled={item.disabled}
+                  className={`w-full justify-start gap-4 px-3 py-4 rounded-xl font-normal focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none ${item.disabled ? "cursor-not-allowed opacity-50 hover:bg-transparent" : "cursor-pointer"}`}
+                >
+                  {item.disabled ? (
+                    <>
+                      {item.icon}
+                      <span className="text-sm">{item.label}</span>
+                    </>
+                  ) : (
+                    <Link href={item.href}>
+                      {item.icon}
+                      <span className="text-sm">{item.label}</span>
+                    </Link>
+                  )}
                 </Button>
               ))}
               <Button variant="ghost" onClick={() => setShowLogoutDialog(true)} className="w-full justify-start gap-4 px-3 py-4 rounded-xl font-normal cursor-pointer focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-transparent focus:outline-none">

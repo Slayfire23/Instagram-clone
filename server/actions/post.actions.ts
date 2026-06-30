@@ -184,8 +184,8 @@ export async function getFeedPosts(cursor?: string) {
           },
         },
         interactions: {
-          where: { type: "LIKE" },
-          select: { userId: true },
+          where: { type: { in: ["LIKE", "SAVED"] } },
+          select: { userId: true, type: true },
         },
         _count: {
           select: {
@@ -202,8 +202,9 @@ export async function getFeedPosts(cursor?: string) {
 
     return {
       posts: results.map((post) => {
-        const likeCount = post.interactions.length;
-        const liked = post.interactions.some((i) => i.userId === user.id);
+        const likeCount = post.interactions.filter((i) => i.type === "LIKE").length;
+        const liked = post.interactions.some((i) => i.type === "LIKE" && i.userId === user.id);
+        const saved = post.interactions.some((i) => i.type === "SAVED" && i.userId === user.id);
         return {
           id: post.id,
           mediaUrl: post.mediaUrl,
@@ -214,6 +215,7 @@ export async function getFeedPosts(cursor?: string) {
           author: post.author,
           likeCount,
           liked,
+          saved,
           commentCount: post._count.interactions,
         };
       }),
@@ -270,6 +272,67 @@ export async function getSuggestedUsers() {
     return suggestions;
   } catch (error) {
     console.error("Error fetching suggested users:", error);
+    return [];
+  }
+}
+
+export async function getSavedPosts() {
+  try {
+    const clerkUser = await currentUser();
+    if (!clerkUser) return [];
+
+    const user = await getUser(clerkUser.id);
+    if (!user) return [];
+
+    const saved = await prisma.interaction.findMany({
+      where: {
+        userId: user.id,
+        type: "SAVED",
+        postId: { not: null },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        post: {
+          select: {
+            id: true,
+            mediaUrl: true,
+            mediaType: true,
+            type: true,
+            caption: true,
+            createdAt: true,
+            author: {
+              select: {
+                username: true,
+                image: true,
+              },
+            },
+            interactions: {
+              select: { type: true },
+            },
+          },
+        },
+      },
+    });
+
+    return saved
+      .map((item) => item.post)
+      .filter((post): post is NonNullable<typeof post> => post !== null)
+      .map((post) => {
+        const likes = post.interactions.filter((i) => i.type === "LIKE").length;
+        const comments = post.interactions.filter((i) => i.type === "COMMENT").length;
+        return {
+          id: post.id,
+          mediaUrl: post.mediaUrl,
+          mediaType: post.mediaType,
+          type: post.type,
+          caption: post.caption,
+          createdAt: post.createdAt,
+          author: post.author,
+          _count: { likes, comments },
+        };
+      });
+  } catch (error) {
+    console.error("Error fetching saved posts:", error);
     return [];
   }
 }

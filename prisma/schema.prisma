@@ -25,6 +25,7 @@ enum MediaType {
 enum InteractionType {
   LIKE
   COMMENT
+  SAVED
   FOLLOW
   FOLLOW_REQUEST
 }
